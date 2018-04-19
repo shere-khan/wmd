@@ -5,7 +5,6 @@
 # License: Simplified BSD
 
 import numpy as np
-from sklearn.metrics import euclidean_distances
 from sklearn.externals.joblib import Parallel, delayed
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.utils import check_array

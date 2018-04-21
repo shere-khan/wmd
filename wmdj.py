@@ -14,6 +14,7 @@ from sklearn.model_selection import train_test_split
 # from sklearn.model_selection import cross_val_score
 from scipy.spatial.distance import cosine
 from sklearn.metrics import euclidean_distances
+from sklearn.metrics.pairwise import cosine_similarity
 from gensim.models import KeyedVectors
 # from pyemd import emd
 # from gensim.models.word2vec import Word2Vec
@@ -40,14 +41,6 @@ def create_vocab_dict():
         vocab_list = map(str.strip, f.readlines())
 
     return {w: k for k, w in enumerate(vocab_list)}
-
-# def wmd(X1, X2, docs1, docs2):
-#     X1 = normalize(X1, norm='l1', copy=False)
-#     X2 = normalize(X2, norm='l1', copy=False)
-#     distances = euclidean_distances(docs1, docs2)
-    # res = emd(X1, X2, distances)
-
-    # return res
 
 def remove_emoji_and_nums(text):
     emojis = """:-) :) :o) :] :3 :c) :> =] 8) =) :} :^) 
@@ -78,60 +71,91 @@ def build_w2v_feature(nBOW, doc, bow_m, w2v_m, feat_size):
 
     return w2vlist
 
+def write_bow_vocab(vocab):
+    with open("data/bow_vocab.txt", "w") as f:
+        for i, v in enumerate(list(vocab)):
+            f.write("{0:<15}".format(v))
+            print("{0:<15}".format(v), end="")
+            if i % 8 == 0:
+                f.write("\n")
+                print()
 
-if __name__ == '__main__':
-    # EMD test
-    # first_histogram = np.array([0.0, 1.0])
-    # second_histogram = np.array([5.0, 3.0])
-    # distance_matrix = np.array([[0.0, 0.5], [0.5, 0.0]])
-    # emd(first_histogram, second_histogram, distance_matrix)
+def get_similar_words(words, model, allwords):
+    for w in words.split():
+        print("{0:>15}".format(w))
+        if w in model:
+            sim = w2v_model.wv.most_similar(w)
+            for s in sim:
+                if s[0] in allwords:
+                    print("{0:>15} {1:<.5f}".format(s[0], s[1]))
+            print()
+        else:
+            print("NA")
 
-    # euc dist example
-    # D = np.array([[1, 3], [1, 2]])
-    # D_prime = np.array([[2, 2], [1, 1]])
-    # res = euclidean_distances(D, D_prime)
+def all_words_present(doc, allwords):
+    for d in doc.split():
+        if d not in allwords:
+            print("{0} not present".format(d))
 
-    data  = util.extract_raw_data(['/home/justin/pycharmprojects/rnn_sent_analysis_6640'
-                                 '/data/processed/'], cap=None)
-
-    # Train BOW
-    # train = [x[0].split("+:::")[0] for x in data]
-    # vectorizer = CountVectorizer(analyzer="word", max_features=5000)
-    # vectorizer.fit(train)
-    # pickle.dump(vectorizer, open("data/vectorizer", "wb"))
-    # exit(0)
-
-    bow_model = pickle.load(open("data/vectorizer", "rb"))
-    w2v_model = Word2Vec.load("/home/justin/pycharmprojects/rnn_sent_analysis_6640/data"
-                              "/w2v_3000")
-    train = [x[0].split("+:::")[0] for x in data]
-
-    doc1 = train[0]
-    doc2 = train[1]
-
-    v1 = w2v_model.wv.most_similar(positive=['male'])
-    v2 = w2v_model.wv.most_similar(positive=['brilliant'])
-
-    vocab = set(w2v_model.wv.vocab)
-    doc1 = [x for x in doc1.split() if x in vocab]
-    doc2 = [x for x in doc2.split() if x in vocab]
-
-    # transform to BOW
-    X1 = bow_model.transform([" ".join(doc1)])
-    X2 = bow_model.transform([" ".join(doc2)])
-
+def wmd(doc1, doc2, bow1, bow2, featsize, bow_model, w2v_model):
     # Normalize
-    nX1 = np.array(normlz(X1.toarray().tolist()[0]))
-    nX2 = np.array(normlz(X2.toarray().tolist()[0]))
+    nX1 = np.array(normlz(bow1.toarray().tolist()[0]))
+    nX2 = np.array(normlz(bow2.toarray().tolist()[0]))
 
     # Create W2V features for distance matrix
-    w2v_X1 = build_w2v_feature(nX1, doc1, bow_model, w2v_model, 3000)
-    w2v_X2 = build_w2v_feature(nX2, doc2, bow_model, w2v_model, 3000)
+    w2v_X1 = build_w2v_feature(nX1, doc1, bow_model, w2v_model, featsize)
+    w2v_X2 = build_w2v_feature(nX2, doc2, bow_model, w2v_model, featsize)
 
     # Calculate dists between w2v feature lists
     W_dist = euclidean_distances(w2v_X1, w2v_X2)
 
     res = emd(nX1, nX2, W_dist)
-    # res = emd.emd.emd(nX1, nX2)
     print(res)
 
+def train_bow():
+    train = [x[0].split("+:::")[0] for x in data]
+    vectorizer = CountVectorizer(analyzer="word", max_features=5000)
+    vectorizer.fit(train)
+    pickle.dump(vectorizer, open("data/vectorizer", "wb"))
+    exit(0)
+
+if __name__ == '__main__':
+    data  = util.extract_raw_data(['/home/justin/pycharmprojects/rnn_sent_analysis_6640'
+                                 '/data/processed/'], cap=None)
+
+    # train_bow()
+
+    bow_model = pickle.load(open("data/vectorizer", "rb"))
+    w2v_model = Word2Vec.load("/home/justin/pycharmprojects/rnn_sent_analysis_6640/data"
+                              "/w2v_3000")
+    bow_vocab = bow_model.vocabulary_
+    w2v_vocab = set(w2v_model.wv.vocab)
+    allwords = list(set(bow_vocab.keys()).intersection(w2v_vocab))
+    # write_bow_vocab(allwords)
+    doc1 = "the pretentious squad receives negative review"
+    doc2 = "the pretentious squad receives negative comment"
+    # doc2 = "the pretentious squad receives a negative comment"
+    # doc2 = "insipid unit discovers another positive comment"
+    # doc2 = "something completely different"
+    all_words_present(doc1, allwords)
+    all_words_present(doc2, allwords)
+    # get_similar_words(doc1, w2v_model, set(allwords))
+    # get_similar_words(doc2, w2v_model)
+    # exit(0)
+
+    train = [x[0].split("+:::")[0] for x in data]
+
+    # doc1 = train[0]
+    # doc2 = train[1]
+
+    doc1 = [x for x in doc1.split() if x in w2v_vocab]
+    doc2 = [x for x in doc2.split() if x in w2v_vocab]
+
+    # transform to BOW
+    bow1 = bow_model.transform([" ".join(doc1)])
+    bow2 = bow_model.transform([" ".join(doc2)])
+
+    wmd(doc1, doc2, bow1, bow2, 3000, bow_model, w2v_model)
+    cs = cosine_similarity(bow1, bow2)
+    # cs = cosine_similarity(np.array([0, 1]), np.array([1, 0]))
+    print("cosine-similarity: {0:0.3f}".format(cs[0][0]))

@@ -35,6 +35,7 @@ class WordMoversKNN(KNeighborsClassifier):
 
     def _wmd(self, i, row, X_train):
         union_idx = np.union1d(X_train[i].indices, row.indices)
+        val = row.indices
         W_minimal = self.W_embed[union_idx]
         W_dist = euclidean_distances(W_minimal)
         bow_i = X_train[i, union_idx].A.ravel()

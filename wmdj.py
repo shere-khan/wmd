@@ -96,9 +96,10 @@ if __name__ == '__main__':
 
     # Train BOW
     # train = [x[0].split("+:::")[0] for x in data]
-    # vectorizer = CountVectorizer(analyzer="word", max_features=1000)
+    # vectorizer = CountVectorizer(analyzer="word", max_features=5000)
     # vectorizer.fit(train)
     # pickle.dump(vectorizer, open("data/vectorizer", "wb"))
+    # exit(0)
 
     bow_model = pickle.load(open("data/vectorizer", "rb"))
     w2v_model = Word2Vec.load("/home/justin/pycharmprojects/rnn_sent_analysis_6640/data"
@@ -108,6 +109,9 @@ if __name__ == '__main__':
     doc1 = train[0]
     doc2 = train[1]
 
+    v1 = w2v_model.wv.most_similar(positive=['male'])
+    v2 = w2v_model.wv.most_similar(positive=['brilliant'])
+
     vocab = set(w2v_model.wv.vocab)
     doc1 = [x for x in doc1.split() if x in vocab]
     doc2 = [x for x in doc2.split() if x in vocab]
@@ -116,9 +120,6 @@ if __name__ == '__main__':
     X1 = bow_model.transform([" ".join(doc1)])
     X2 = bow_model.transform([" ".join(doc2)])
 
-    # nX1 = normalize(X1, norm='l1', copy=False)
-    # nX2 = normalize(X2, norm='l1', copy=False)
-
     # Normalize
     nX1 = np.array(normlz(X1.toarray().tolist()[0]))
     nX2 = np.array(normlz(X2.toarray().tolist()[0]))
@@ -126,20 +127,6 @@ if __name__ == '__main__':
     # Create W2V features for distance matrix
     w2v_X1 = build_w2v_feature(nX1, doc1, bow_model, w2v_model, 3000)
     w2v_X2 = build_w2v_feature(nX2, doc2, bow_model, w2v_model, 3000)
-
-    # w2v_X1 = [w2v_model[x] for x in doc1]
-    # w2v_X2 = [w2v_model[x] for x in doc2]
-
-    bow_vocab = bow_model.vocabulary_
-    for key, val in bow_vocab.items():
-        if val == 126:
-            print(key)
-        if val == 30:
-            print(key)
-
-    v1 = w2v_model["but"]
-    v2 = w2v_model["all"]
-    res1 = distance.euclidean(v1, v2)
 
     # Calculate dists between w2v feature lists
     W_dist = euclidean_distances(w2v_X1, w2v_X2)
